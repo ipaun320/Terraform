@@ -95,6 +95,13 @@ resource "azurerm_subnet" "sub2" {
   address_prefixes     = ["10.0.0.0/29"]
 }
 
+resource "azurerm_subnet" "sub3" {
+  name                 = "web-app-subnet"
+  resource_group_name  = azurerm_resource_group.training.name
+  virtual_network_name = azurerm_virtual_network.training.name
+  address_prefixes     = ["10.0.2.0/24"]
+}
+
 resource "azurerm_network_interface" "training-vm1" {
   name                = "app-nic1"
   location            = azurerm_resource_group.training.location
@@ -303,4 +310,71 @@ resource "azurerm_key_vault_secret" "ssh_public_key" {
   name         = "ssh-public-key"
   value        = file("~/.ssh/id_rsa.pub")
   key_vault_id = azurerm_key_vault.training.id
+}
+
+resource "azurerm_service_plan" "app-service-plan" {
+  name                = "my-asp"
+  resource_group_name = azurerm_resource_group.training.name
+  location            = azurerm_resource_group.training.location
+  os_type             = "Linux"
+  sku_name            = "P1v2"
+}
+
+resource "azurerm_linux_web_app" "linux-web-app" {
+  name                = "linux-training-web-app"
+  resource_group_name = azurerm_resource_group.training.name
+  location            = azurerm_service_plan.app-service-plan.location
+  service_plan_id     = azurerm_service_plan.app-service-plan.id
+
+  site_config {
+    ip_restriction {
+      ip_address = "128.77.15.12/32"
+      name       = "AllowMyIP"
+      priority   = 100
+      action     = "Allow"
+    }
+  }
+}
+
+resource "azurerm_private_endpoint" "my-private-endpoint" {
+  name                = "my-training-endpoint"
+  location            = azurerm_resource_group.training.location
+  resource_group_name = azurerm_resource_group.training.name
+  subnet_id           = azurerm_subnet.sub3.id
+
+  private_service_connection {
+    name                           = "my-training-privateserviceconnection"
+    private_connection_resource_id = azurerm_linux_web_app.linux-web-app.id
+    is_manual_connection           = false
+    subresource_names              = ["sites"]
+  }
+}
+
+# resource "azurerm_container_group" "my-training-container" {
+#   name                = "my-training-container"
+#   location            = azurerm_resource_group.training.location
+#   resource_group_name = azurerm_resource_group.training.name
+#   ip_address_type     = "Public"
+#   dns_name_label      = "aci-label"
+#   os_type             = "Linux"
+
+#   container {
+#     name   = "hello-world-training"
+#     image  = "mcr.microsoft.com/azuredocs/aci-helloworld:latest"
+#     cpu    = "0.5"
+#     memory = "1.5"
+
+#     ports {
+#       port     = 443
+#       protocol = "TCP"
+#     }
+#   }
+# }
+
+resource "azurerm_container_registry" "acr" {
+  name                = "trainingContainerRegistry927"
+  resource_group_name = azurerm_resource_group.training.name
+  location            = azurerm_resource_group.training.location
+  sku                 = "Premium"
+  admin_enabled       = false
 }
