@@ -17,7 +17,7 @@ resource "azurerm_network_security_group" "vm1" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "128.77.15.14"
+    source_address_prefix      = "128.77.15.12"
     destination_address_prefix = "*"
   }
   security_rule {
@@ -46,7 +46,7 @@ resource "azurerm_network_security_group" "vm2" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "128.77.15.14"
+    source_address_prefix      = "128.77.15.12"
     destination_address_prefix = "*"
   }
   security_rule {
@@ -221,24 +221,25 @@ resource "azurerm_lb_backend_address_pool" "backend" {
   loadbalancer_id     = azurerm_lb.main.id
 }
 
-resource "azurerm_lb_probe" "http" {
-  name                = "http-probe"
-  loadbalancer_id     = azurerm_lb.main.id
-  protocol            = "Tcp"
-  port                = 80
-  interval_in_seconds = 5
-  number_of_probes    = 2
-}
+# resource "azurerm_lb_probe" "http" {
+#   name                = "http-probe"
+#   loadbalancer_id     = azurerm_lb.main.id
+#   protocol            = "Tcp"
+#   port                = 80
+#   interval_in_seconds = 5
+#   number_of_probes    = 2
+# }
 
-resource "azurerm_lb_rule" "http" {
-  name                           = "http-rule"
-  loadbalancer_id                = azurerm_lb.main.id
-  protocol                       = "Tcp"
-  frontend_port                  = 80
-  backend_port                   = 80
-  frontend_ip_configuration_name = "my-lb-public"
-  probe_id                       = azurerm_lb_probe.http.id
-}
+# resource "azurerm_lb_rule" "http" {
+#   name                           = "http-rule"
+#   loadbalancer_id                = azurerm_lb.main.id
+#   protocol                       = "Tcp"
+#   frontend_port                  = 80
+#   backend_port                   = 80
+#   frontend_ip_configuration_name = "my-lb-public"
+#   probe_id                       = azurerm_lb_probe.http.id
+#   backend_address_pool_ids       = [azurerm_lb_backend_address_pool.azurerm_lb_backend_address_pool.id]
+# }
 
 resource "azurerm_lb_rule" "ssh" {
   name                           = "ssh-rule"
@@ -248,6 +249,7 @@ resource "azurerm_lb_rule" "ssh" {
   backend_port                   = 22
   frontend_ip_configuration_name = "my-lb-public"
   probe_id                       = azurerm_lb_probe.ssh.id
+  backend_address_pool_ids       = [azurerm_lb_backend_address_pool.backend.id]
 }
 
 resource "azurerm_lb_probe" "ssh" {
@@ -279,6 +281,7 @@ resource "azurerm_key_vault" "training" {
   sku_name                    = "standard"
   purge_protection_enabled    = true
   soft_delete_retention_days  = 7
+  tags = local.tags
 }
 
 data "azurerm_client_config" "current" {}
